@@ -41,7 +41,7 @@ def start_bot(updater: Updater):
         updater.start_polling()
         logging.debug("Starting locally...")
     else:
-        url = f"https://{HEROKU_APP_NAME}.herokuapp.com/{TOKEN}"
+        url = f"https://{envar('HEROKU_APP_NAME')}.herokuapp.com/{envar('TOKEN')}"
         updater.start_webhook(listen="0.0.0.0",
                           port=int(envar("PORT")),
                           url_path=envar("TOKEN"),
@@ -133,7 +133,7 @@ def add_handlers(d: Dispatcher):
     d.add_handler(MessageHandler(filter_ignorecase("^(gif|гиф)( .+)?$"),      lambda u, c: search(u, c, ResultType.GIF, SearchType.RANDOM)))
     d.add_handler(MessageHandler(filter_ignorecase("^(gif1|гиф1)( .+)?$"),    lambda u, c: search(u, c, ResultType.GIF, SearchType.PRECISE)))
     d.add_handler(MessageHandler(filter_ignorecase("^(please|плис)( .+)?$"),  lambda u, c: search(u, c, ResultType.PIC, SearchType.PRECISE)))
-    d.add_error_handler(lambda u, c: error(c.error))
+    d.add_error_handler(lambda u, c: logging.error(c.error))
 
 
 def main():
