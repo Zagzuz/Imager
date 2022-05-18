@@ -104,18 +104,26 @@ def search(upd: Update, ctx: CallbackContext, result_type: ResultType, search_ty
         if query != last_query:
             last_index = 0
             ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.TYPING)
-            gis.search({'q': query, 'num': 10})
+            params = {'q': query, 'num': 10}
+            if result_type == ResultType.GIF:
+                params["fileType"] = "gif"
+            else:
+                params["fileType"] = "jpg|png"
+            gis.search(params)
             search_results = gis.results()
         if len(search_results) == 0:
             upd.message.reply_text("Nothing found")
             return
+        reply_func = upd.message.reply_photo \
+            if result_type == ResultType.PIC \
+            else upd.message.reply_animation
         if search_type == SearchType.RANDOM:
             last_index = randrange(len(search_results))
         else:
             last_index %= len(search_results)
         try:
             ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.UPLOAD_PHOTO)
-            upd.message.reply_photo(search_results[last_index].url)
+            reply_func(search_results[last_index].url)
         except:
             del search_results[last_index]
         else:
