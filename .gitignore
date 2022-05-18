@@ -1,0 +1,10 @@
+# Visual Studio
+.vs/
+env/
+*.pyproj
+*.sln
+# Local environment
+env/
+.env
+# Logs
+*.log

@@ -1,0 +1,2 @@
+python-telegram-bot==13.11
+google_images_search==1.4.2
