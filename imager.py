@@ -1,10 +1,10 @@
-﻿import os
-import re
+﻿import re
+import os
 import sys
 import logging
-from enum import Enum
-from random import randrange
-from google_images_search import GoogleImagesSearch
+from utils import envar
+
+import search
 
 from telegram import Update, ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, \
@@ -30,6 +30,7 @@ def init_logging(console_level=logging.DEBUG, file_level=logging.DEBUG):
 def is_local():
     return not (len(sys.argv) > 1 and sys.argv[1] == "remote")
 
+
 def init_env():
     from dotenv import load_dotenv
     load_dotenv()
@@ -50,97 +51,83 @@ def start_bot(updater: Updater):
     updater.idle()
 
 
-def envar(varname: str):
-    return os.environ.get(varname, None)
-
-
-class ResultType(Enum):
-    PIC = 0
-    GIF = 1
-
-
-class SearchType(Enum):
-    PRECISE = 0
-    RANDOM = 1
-
-
 def cmd_del(upd: Update, ctx: CallbackContext):
     if upd.message is not None and                      \
         upd.message.reply_to_message is not None and    \
         upd.message.from_user is not None and           \
-        upd.message.from_user.id == envar("MY_ID"):
+        upd.message.from_user.id == int(envar("MY_ID")):
         ctx.bot.delete_message(upd.message.reply_to_message.chat.id,
                                upd.message.reply_to_message.message_id)
-
-last_index = 0
-last_query = None
-search_results = None
-last_search_type = None
 
 
 def parse_query(ctx):
     if not ctx.match or not ctx.match.regs:
         return None
     if ctx.match.regs[2] == (-1, -1):   # no query
-        return last_query
+        return ctx.chat_data["engine"].query
     a, b = ctx.match.regs[2]
     return ctx.match.string[a:b].strip()
 
 
-def search(upd: Update, ctx: CallbackContext, result_type: ResultType, search_type: SearchType):
+def init_chat_data(ctx):
+    def inner(ctx, **kwargs):
+        for k, v in kwargs.items():
+            if k not in ctx.chat_data:
+                ctx.chat_data[k] = v
+    kwargs = {"engine": search.Engine(),
+              "index" : search.Index(),
+              "type"  : None}
+    inner(ctx, **kwargs)
+
+
+def searcher(upd: Update, ctx: CallbackContext, result_type: search.ResultType, search_type: search.Type):
+    init_chat_data(ctx)
+    # Get query
     if upd.message is None:
         return
-    gis = GoogleImagesSearch(envar("API_KEY"), envar("DEVELOPER_GCX"))
     query = parse_query(ctx)
     if query is None:
         return
-    global last_query
-    global last_index
-    global search_results
-    global last_search_type
+    res = ctx.chat_data["engine"].results
+    # If this is a new query or a different result type - start searching
+    if query != ctx.chat_data["engine"].query or \
+       result_type != ctx.chat_data["engine"].result_type:
+       ctx.chat_data["index"].reset()
+       ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.TYPING)
+       res = ctx.chat_data["engine"].search(query, result_type)
+    # Start over in case of an error
     while True:
-        if search_type != last_search_type:
-            last_index = 0
-        if query != last_query:
-            last_index = 0
-            ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.TYPING)
-            params = {'q': query, 'num': 10}
-            if result_type == ResultType.GIF:
-                params["fileType"] = "gif"
-            else:
-                params["fileType"] = "jpg|png"
-            gis.search(params)
-            search_results = gis.results()
-        if len(search_results) == 0:
+        # Reset index if search type changed (precise <-> random)
+        if search_type != ctx.chat_data["type"]:
+            ctx.chat_data["index"].reset()
+        if len(res) == 0:
             upd.message.reply_text("Nothing found")
             return
+        # Set reply function - photo or animation
         reply_func = upd.message.reply_photo \
-            if result_type == ResultType.PIC \
+            if result_type == search.Picture \
             else upd.message.reply_animation
-        if search_type == SearchType.RANDOM:
-            last_index = randrange(len(search_results))
-        else:
-            last_index %= len(search_results)
+        # Get new image index
+        index = ctx.chat_data["index"].set_next(search_type, len(res))
+        logging.debug(f"Image link: {res[index].url}")
+        # Reply or remove image if inaccessible
         try:
             ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.UPLOAD_PHOTO)
-            reply_func(search_results[last_index].url)
+            reply_func(res[index].url)
         except:
-            del search_results[last_index]
+            del res[index]
         else:
             break
-    if search_type == SearchType.PRECISE:
-        last_index += 1
-    last_query = query
-    last_search_type = search_type
+    ctx.chat_data["type"] = search_type
 
 
 def add_handlers(d: Dispatcher):
     filter_ignorecase = lambda s: Filters.regex(re.compile(s, re.IGNORECASE))
     d.add_handler(MessageHandler(filter_ignorecase("^(дел|del)$"),            cmd_del))
-    d.add_handler(MessageHandler(filter_ignorecase("^(pls|плс)( .+)?$"),      lambda u, c: search(u, c, ResultType.PIC, SearchType.RANDOM)))
-    d.add_handler(MessageHandler(filter_ignorecase("^(gif|гиф)( .+)?$"),      lambda u, c: search(u, c, ResultType.GIF, SearchType.RANDOM)))
-    d.add_handler(MessageHandler(filter_ignorecase("^(gif1|гиф1)( .+)?$"),    lambda u, c: search(u, c, ResultType.GIF, SearchType.PRECISE)))
-    d.add_handler(MessageHandler(filter_ignorecase("^(please|плис)( .+)?$"),  lambda u, c: search(u, c, ResultType.PIC, SearchType.PRECISE)))
+    d.add_handler(MessageHandler(filter_ignorecase("^(pls|плс)( .+)?$"),      lambda u, c: searcher(u, c, search.Picture,   search.Type.RANDOM)))
+    d.add_handler(MessageHandler(filter_ignorecase("^(gif|гиф)( .+)?$"),      lambda u, c: searcher(u, c, search.Animation, search.Type.RANDOM)))
+    d.add_handler(MessageHandler(filter_ignorecase("^(gif1|гиф1)( .+)?$"),    lambda u, c: searcher(u, c, search.Animation, search.Type.PRECISE)))
+    d.add_handler(MessageHandler(filter_ignorecase("^(please|плис)( .+)?$"),  lambda u, c: searcher(u, c, search.Picture,   search.Type.PRECISE)))
     d.add_error_handler(lambda u, c: logging.error(c.error))
 
 

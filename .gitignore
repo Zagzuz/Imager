@@ -1,8 +1,12 @@
+# Python
+__pycache__/
+
 # Visual Studio
 .vs/
 env/
 *.pyproj
 *.sln
+
 # Local environment
 env/
 .env
