@@ -9,6 +9,9 @@ Keep in mind there are certain API [restrictions](https://developers.google.com/
 + [python-dotenv](https://github.com/theskumar/python-dotenv)
 
 ## Setup
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/Zagzuz/Imager)
+
 Create .env file in a root directory and add required envrionmental variables in the following format:
 ```
 API_KEY='<DEVELOP API KEY>'
