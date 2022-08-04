@@ -33,6 +33,10 @@ HEROKU_APP_NAME=<YOUR HEROKU APP NAME>
 `PORT` is typically 8443
 ## Usage
 ### Locally
+```
 python imager.py
+```
 ### Remotely
+```
 python imager.py remote
+```
