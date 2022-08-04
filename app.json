@@ -1,0 +1,48 @@
+{
+  "name": "Imager",
+  "description": "Simple Telegram image-searching bot.",
+  "keywords": [
+    "images",
+    "python",
+    "telegram",
+    "bot"
+  ],
+  "repository": "https://github.com/Zagzuz/Imager",
+  "env": {
+    "API_KEY": {
+      "description": "Developer API key",
+      "generator": "secret-api-key"
+    },
+    "DEVELOPER_GCX": {
+      "description": "Google project CX",
+      "generator": "some-project-cx"
+    },
+    "TOKEN": {
+      "description": "Your telegram bot token",
+      "generator": "secret-token"
+    },
+    "MY_ID": {
+      "description": "Your telegram profile id",
+      "generator": "0"
+    },
+    "PORT": {
+      "description": "Web port",
+      "generator": "8443"
+    },
+    "HEROKU_APP_NAME": {
+      "description": "Your heroku app name",
+      "generator": "some-heroku-app"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "standard-1x"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
