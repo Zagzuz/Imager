@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 from utils import envar
+from random import randrange
 
 import search
 
@@ -119,10 +120,26 @@ def searcher(upd: Update, ctx: CallbackContext, result_type: search.ResultType, 
         upd.message.reply_text("Nothing found")
     ctx.chat_data["type"] = search_type
 
+def cmd_el_gato(upd: Update, ctx: CallbackContext, attempts=10):
+    init_chat_data(ctx)
+    res = ctx.chat_data["engine"].search_once("el gato +cat", search.Picture, num=10)
+    attempts = 10
+    while attempts and res:
+        ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.UPLOAD_PHOTO)
+        index = randrange(len(res))
+        logging.debug(f"El gato link: {res[index].url}")
+        # Reply or remove image if inaccessible
+        try:
+            upd.message.reply_photo(res[index].url)
+        except:
+            del res[index]
+        else:
+            break
 
 def add_handlers(d: Dispatcher):
     filter_ignorecase = lambda s: Filters.regex(re.compile(s, re.IGNORECASE))
-    d.add_handler(MessageHandler(filter_ignorecase("^(дел|del)$"),            cmd_del))
+    d.add_handler(MessageHandler(filter_ignorecase("^(дел|del)$"),                      cmd_del))
+    d.add_handler(MessageHandler(filter_ignorecase("((/)?gato)|((/)?el_gato)|(el gato)"),     cmd_el_gato))
     d.add_handler(MessageHandler(filter_ignorecase("^(pls|плс)( .+)?$"),      lambda u, c: searcher(u, c, search.Picture,   search.Type.RANDOM)))
     d.add_handler(MessageHandler(filter_ignorecase("^(gif|гиф)( .+)?$"),      lambda u, c: searcher(u, c, search.Animation, search.Type.RANDOM)))
     d.add_handler(MessageHandler(filter_ignorecase("^(gif1|гиф1)( .+)?$"),    lambda u, c: searcher(u, c, search.Animation, search.Type.PRECISE)))
