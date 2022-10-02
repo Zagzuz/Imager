@@ -80,7 +80,7 @@ def init_chat_data(ctx):
     inner(ctx, **kwargs)
 
 
-def searcher(upd: Update, ctx: CallbackContext, result_type: search.ResultType, search_type: search.Type):
+def searcher(upd: Update, ctx: CallbackContext, result_type: search.ResultType, search_type: search.Type, attempts=10):
     init_chat_data(ctx)
     # Get query
     if upd.message is None:
@@ -95,15 +95,12 @@ def searcher(upd: Update, ctx: CallbackContext, result_type: search.ResultType, 
        ctx.chat_data["index"].reset()
        ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.UPLOAD_PHOTO)
        res = ctx.chat_data["engine"].search(query, result_type)
-    # Start over in case of an error
-    while True:
+    # Try to respond (while there are images left in the list)
+    while attempts and len(res):
         ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.UPLOAD_PHOTO)
         # Reset index if search type changed (precise <-> random)
         if search_type != ctx.chat_data["type"]:
             ctx.chat_data["index"].reset()
-        if len(res) == 0:
-            upd.message.reply_text("Nothing found")
-            return
         # Set reply function - photo or animation
         reply_func = upd.message.reply_photo \
             if result_type == search.Picture \
@@ -118,6 +115,8 @@ def searcher(upd: Update, ctx: CallbackContext, result_type: search.ResultType, 
             del res[index]
         else:
             break
+    else:
+        upd.message.reply_text("Nothing found")
     ctx.chat_data["type"] = search_type
 
 
