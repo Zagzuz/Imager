@@ -46,7 +46,7 @@ class Engine:
         self.result_type = None
         self.results = []
 
-    def search(self, query, result_type: ResultType, **kwargs):
+    def search(self, query: str, result_type: ResultType, **kwargs):
         gis = GoogleImagesSearch(envar("API_KEY"), envar("DEVELOPER_GCX"))
         self.params["q"] = query
         self.result_type = result_type
@@ -55,6 +55,15 @@ class Engine:
         gis.search(self.params)
         self.results = gis.results()
         return self.results
+
+    def search_once(self, query: str, result_type: ResultType, **kwargs):
+        gis = GoogleImagesSearch(envar("API_KEY"), envar("DEVELOPER_GCX"))
+        params = self.params
+        params.update(kwargs)
+        params["q"] = query
+        params["fileType"] = getattr(result_type, "fileType")
+        gis.search(params)
+        return gis.results()
 
     @property
     def query(self):
