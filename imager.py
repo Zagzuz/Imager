@@ -93,10 +93,11 @@ def searcher(upd: Update, ctx: CallbackContext, result_type: search.ResultType, 
     if query != ctx.chat_data["engine"].query or \
        result_type != ctx.chat_data["engine"].result_type:
        ctx.chat_data["index"].reset()
-       ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.TYPING)
+       ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.UPLOAD_PHOTO)
        res = ctx.chat_data["engine"].search(query, result_type)
     # Start over in case of an error
     while True:
+        ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.UPLOAD_PHOTO)
         # Reset index if search type changed (precise <-> random)
         if search_type != ctx.chat_data["type"]:
             ctx.chat_data["index"].reset()
@@ -112,7 +113,6 @@ def searcher(upd: Update, ctx: CallbackContext, result_type: search.ResultType, 
         logging.debug(f"Image link: {res[index].url}")
         # Reply or remove image if inaccessible
         try:
-            ctx.bot.send_chat_action(upd.message.chat.id, ChatAction.UPLOAD_PHOTO)
             reply_func(res[index].url)
         except:
             del res[index]
